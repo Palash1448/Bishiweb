@@ -1,0 +1,109 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserData().role == 'SUPER_ADMIN';
+    }
+    
+    function isManagerOrAbove() {
+      return isAuthenticated() && (getUserData().role == 'SUPER_ADMIN' || getUserData().role == 'MANAGER');
+    }
+    
+    function isStaffOrAbove() {
+      return isAuthenticated() && (getUserData().role in ['SUPER_ADMIN', 'MANAGER', 'STAFF']);
+    }
+
+    // Users collection (Admins & Staff)
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    // Clients collection (CRM & Mobile App Auth)
+    match /clients/{clientId} {
+      allow read: if true; // Allows Android app to verify login credentials & fetch client profile
+      allow create, update: if true;
+      allow delete: if isSuperAdmin();
+    }
+
+    // Investment Plans (Public catalog for Android App & Web)
+    match /investmentPlans/{planId} {
+      allow read: if true;
+      allow write: if isManagerOrAbove();
+    }
+
+    // Investments (Android Client & Admin Web)
+    match /investments/{investmentId} {
+      allow read: if true;
+      allow create: if true; // Allows Android client to submit new investment
+      allow update: if isManagerOrAbove();
+      allow delete: if isSuperAdmin();
+    }
+
+    // Loans & Underwriting (Android Client & Admin Web)
+    match /loans/{loanId} {
+      allow read: if true;
+      allow create: if true; // Allows Android client to submit loan application
+      allow update: if isManagerOrAbove();
+      allow delete: if isSuperAdmin();
+    }
+
+    // Loan Payments & Passbook Receipts
+    match /payments/{paymentId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isManagerOrAbove();
+    }
+
+    match /loanPayments/{paymentId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isManagerOrAbove();
+    }
+
+    // Transactions Ledger
+    match /transactions/{txnId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // Documents
+    match /documents/{docId} {
+      allow read: if true;
+      allow write: if true;
+      allow delete: if isManagerOrAbove();
+    }
+
+    // Notifications (Push alerts for Admin when Client applies via Android)
+    match /notifications/{notifId} {
+      allow read, update: if true;
+      allow create: if true;
+      allow delete: if isManagerOrAbove();
+    }
+
+    // Audit Logs
+    match /auditLogs/{logId} {
+      allow read: if isManagerOrAbove();
+      allow create: if true;
+      allow update, delete: if false; // Immutable audit log
+    }
+
+    // Business Settings
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+  }
+}
