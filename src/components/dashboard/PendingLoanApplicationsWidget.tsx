@@ -181,7 +181,13 @@ export const PendingLoanApplicationsWidget: React.FC = () => {
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <strong className="text-base text-slate-900 font-extrabold">{loan.clientName}</strong>
+                        <button
+                          onClick={() => navigate(`/clients/${loan.clientId}`)}
+                          className="text-base text-slate-900 font-extrabold hover:text-emerald-700 hover:underline transition-colors text-left cursor-pointer"
+                          title="Click to view full client details"
+                        >
+                          {loan.clientName}
+                        </button>
                         <span className="font-mono text-xs font-bold text-slate-500">({loan.id})</span>
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold">
                           <Smartphone className="w-3 h-3" /> Android App Submission

@@ -11,6 +11,7 @@ import { LoanApplicationModal } from '../components/loans/LoanApplicationModal';
 import { RecordPaymentModal } from '../components/payments/RecordPaymentModal';
 import { ReceiptModal } from '../components/payments/ReceiptModal';
 import { ManageClientCredentialsModal } from '../components/clients/ManageClientCredentialsModal';
+import { EditClientModal } from '../components/clients/EditClientModal';
 import { Payment, Investment } from '../types';
 import {
   Users,
@@ -34,6 +35,7 @@ import {
   Key,
   ShieldAlert,
   Eye,
+  Edit3,
 } from 'lucide-react';
 
 const getInvAmount = (inv: Investment | any): number => {
@@ -74,6 +76,7 @@ export const ClientDetailPage: React.FC = () => {
   const [selectedInvestment, setSelectedInvestment] = useState<Investment | null>(null);
   const [uploadDocOpen, setUploadDocOpen] = useState(false);
   const [credentialsModalOpen, setCredentialsModalOpen] = useState(false);
+  const [editClientOpen, setEditClientOpen] = useState(false);
 
   // New Doc Form
   const [docName, setDocName] = useState('');
@@ -197,6 +200,24 @@ export const ClientDetailPage: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <Button
               size="sm"
+              variant="outline"
+              className="hover:bg-slate-100 text-slate-700"
+              leftIcon={<Edit3 className="w-4 h-4 text-slate-600" />}
+              onClick={() => setEditClientOpen(true)}
+            >
+              Edit Profile
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="hover:bg-slate-100 text-slate-700"
+              leftIcon={<Printer className="w-4 h-4 text-slate-600" />}
+              onClick={() => window.print()}
+            >
+              Print Dossier
+            </Button>
+            <Button
+              size="sm"
               variant="primary"
               className="bg-fintech-navy-900 hover:bg-fintech-navy-800 text-white shadow-xs"
               leftIcon={<Key className="w-4 h-4 text-emerald-400" />}
@@ -311,6 +332,14 @@ export const ClientDetailPage: React.FC = () => {
                   <strong className="text-slate-900">{client.companyName || '—'}</strong>
                 </div>
                 <div>
+                  <span className="text-slate-400 block">Aadhaar Number:</span>
+                  <strong className="font-mono text-slate-900">{client.aadhaarNumber || '—'}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-400 block">PAN Card Number:</span>
+                  <strong className="font-mono text-slate-900">{client.panNumber || '—'}</strong>
+                </div>
+                <div>
                   <span className="text-slate-400 block">Monthly Income:</span>
                   <strong className="text-emerald-700 font-bold">{formatCurrency(client.monthlyIncome)}/mo</strong>
                 </div>
@@ -357,6 +386,178 @@ export const ClientDetailPage: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Bhishi Group & Installment Dossier Card */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-fintech space-y-4 md:col-span-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" /> Bhishi Group & Installment Dossier
+                </h3>
+                <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                  {client.bishiGroupName || 'साई बीशी मंडळ'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+                  <span className="text-slate-400 block mb-0.5">Member / Sabhasad No:</span>
+                  <strong className="text-slate-900 font-mono text-sm">{client.memberNumber || client.id}</strong>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+                  <span className="text-slate-400 block mb-0.5">Monthly Hfta (हप्ता):</span>
+                  <strong className="text-emerald-700 text-sm font-black">
+                    {client.monthlyInstallment ? formatCurrency(client.monthlyInstallment) : '—'}
+                  </strong>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+                  <span className="text-slate-400 block mb-0.5">Installments Paid:</span>
+                  <strong className="text-slate-900 text-sm">
+                    {client.monthsPaid || 0} / {client.totalMonths || 12} Months
+                  </strong>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+                  <span className="text-slate-400 block mb-0.5">Total Paid (जमा):</span>
+                  <strong className="text-emerald-700 text-sm font-bold">
+                    {client.totalPaid ? formatCurrency(client.totalPaid) : '—'}
+                  </strong>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+                  <span className="text-slate-400 block mb-0.5">Balance Due (शिल्लक):</span>
+                  <strong className="text-slate-900 text-sm font-bold">
+                    {client.balanceAmount !== undefined ? formatCurrency(client.balanceAmount) : '—'}
+                  </strong>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+                  <span className="text-slate-400 block mb-0.5">Penalty / Danda:</span>
+                  <strong className={client.penaltyAmount ? 'text-rose-600 text-sm font-bold' : 'text-slate-500 text-sm'}>
+                    {client.penaltyAmount ? formatCurrency(client.penaltyAmount) : '₹0'}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Custom Imported Spreadsheet Fields Card */}
+            {client.customFields && Object.keys(client.customFields).length > 0 && (
+              <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-fintech space-y-4 md:col-span-2">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-indigo-600" /> Imported Spreadsheet Attributes
+                  </h3>
+                  <span className="text-[11px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                    {Object.keys(client.customFields).length} Custom Columns Preserved
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
+                  {Object.entries(client.customFields).map(([k, v]) => (
+                    <div key={k} className="p-3 rounded-xl bg-indigo-50/40 border border-indigo-100/70">
+                      <span className="text-slate-500 font-medium block truncate mb-1" title={k}>
+                        {k}:
+                      </span>
+                      <strong className="text-slate-900 block truncate" title={String(v)}>
+                        {String(v) || '—'}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Month-by-Month Bhishi Ledger Matrix Passbook */}
+            {client.monthlyLedger && client.monthlyLedger.length > 0 && (
+              <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-fintech space-y-4 md:col-span-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-emerald-600" /> Month-by-Month Bishi Passbook (मासिक हप्ता पत्रक)
+                    </h3>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {client.bishiGroupName || 'Sai Bhishi Mandale'} • Total {client.monthlyLedger.length} Installment Periods
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                      Paid: {client.monthsPaid || 0}/{client.totalMonths || client.monthlyLedger.length} Months
+                    </span>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[11px]">
+                      <tr>
+                        <th className="py-2.5 px-3"># Period</th>
+                        <th className="py-2.5 px-3">Month</th>
+                        <th className="py-2.5 px-3 text-right">Target Hfta (AMT)</th>
+                        <th className="py-2.5 px-3 text-right">Amount Paid</th>
+                        <th className="py-2.5 px-3">Payment Date</th>
+                        <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3">Payment Splits</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {client.monthlyLedger.map((entry) => {
+                        const isPaid = entry.status === 'PAID' || entry.amountPaid >= entry.amountDue;
+                        const isPartial = entry.status === 'PARTIALLY_PAID' || (entry.amountPaid > 0 && entry.amountPaid < entry.amountDue);
+                        return (
+                          <tr key={entry.monthIndex} className={isPaid ? 'bg-emerald-50/20' : isPartial ? 'bg-amber-50/20' : ''}>
+                            <td className="py-2.5 px-3 font-mono font-bold text-slate-500">
+                              Month {entry.monthIndex}
+                            </td>
+                            <td className="py-2.5 px-3 font-bold text-slate-800">
+                              {entry.monthName}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono text-slate-600">
+                              {formatCurrency(entry.amountDue || client.monthlyInstallment || 0)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">
+                              {entry.amountPaid > 0 ? formatCurrency(entry.amountPaid) : '—'}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono text-slate-700">
+                              {entry.paymentDate ? formatDate(entry.paymentDate) : '—'}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              {isPaid ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                  ✓ Paid
+                                </span>
+                              ) : isPartial ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                                  Partial
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                  Due
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-[11px] text-slate-500">
+                              {entry.splits && entry.splits.length > 1 ? (
+                                <div className="space-y-0.5">
+                                  {entry.splits.map((s, sIdx) => (
+                                    <span key={sIdx} className="inline-block bg-white px-1.5 py-0.5 rounded border border-slate-200 mr-1 text-[10px] font-mono">
+                                      ₹{s.amount.toLocaleString()} ({s.date ? formatDate(s.date) : '—'})
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Portal Login Credentials & Security Card */}
             <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-fintech space-y-4 md:col-span-2">
@@ -787,6 +988,13 @@ export const ClientDetailPage: React.FC = () => {
       <ManageClientCredentialsModal
         isOpen={credentialsModalOpen}
         onClose={() => setCredentialsModalOpen(false)}
+        client={client}
+      />
+
+      {/* Edit Client Profile Modal */}
+      <EditClientModal
+        isOpen={editClientOpen}
+        onClose={() => setEditClientOpen(false)}
         client={client}
       />
 

@@ -213,9 +213,16 @@ export const LoansPage: React.FC = () => {
                   >
                     {/* Loan ID & Borrower */}
                     <td className="py-3.5 px-4">
-                      <span className="font-bold text-slate-900 text-sm block group-hover:text-amber-700 transition-colors">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/clients/${loan.clientId}`);
+                        }}
+                        className="font-bold text-slate-900 text-sm block hover:text-emerald-700 transition-colors text-left group-hover:underline cursor-pointer"
+                        title="Click to view full client details"
+                      >
                         {loan.clientName}
-                      </span>
+                      </button>
                       <span className="text-[11px] font-mono text-slate-500 font-semibold">{loan.id}</span>
                     </td>
 

@@ -248,7 +248,8 @@ export const InvestmentsPage: React.FC = () => {
                           e.stopPropagation();
                           navigate(`/clients/${inv.clientId}`);
                         }}
-                        className="font-bold text-slate-900 hover:text-emerald-700 text-left transition-colors"
+                        className="font-bold text-slate-900 hover:text-emerald-700 hover:underline text-left transition-colors cursor-pointer"
+                        title="Click to view full client details"
                       >
                         {inv.clientName}
                       </button>

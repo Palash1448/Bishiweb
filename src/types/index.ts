@@ -17,6 +17,22 @@ export type ClientType = 'INVESTOR' | 'BORROWER' | 'INVESTOR_BORROWER';
 export type ClientStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING_VERIFICATION';
 export type KycStatus = 'VERIFIED' | 'PENDING' | 'REJECTED' | 'NOT_SUBMITTED';
 
+export interface MonthlyPaymentSplit {
+  amount: number;
+  date?: string;
+  notes?: string;
+}
+
+export interface MonthlyLedgerEntry {
+  monthIndex: number; // 1, 2, 3...
+  monthName: string; // OCT, NOV, DEC, JAN, FEB, MAR...
+  amountDue: number; // Target installment amount (AMT)
+  amountPaid: number; // Total amount paid in this month
+  paymentDate?: string; // Date of primary or latest payment
+  status: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'ADVANCE';
+  splits?: MonthlyPaymentSplit[]; // Individual sub-payments for that month
+}
+
 export interface Client {
   id: string; // e.g. MB-10024
   name: string;
@@ -53,7 +69,26 @@ export interface Client {
   status: ClientStatus;
   notes?: string;
   avatarUrl?: string;
+
+  // Bhishi / Chit Fund Specific Fields from Excel
+  srNo?: number | string;
+  memberNumber?: string;
+  aadhaarNumber?: string;
+  panNumber?: string;
+  bishiGroupName?: string;
+  monthlyInstallment?: number;
+  monthsPaid?: number;
+  totalMonths?: number;
+  penaltyAmount?: number;
+  totalPaid?: number;
+  balanceAmount?: number;
+
+  // Dynamic Custom Fields imported from Excel columns
+  customFields?: Record<string, any>;
   
+  // Month-by-month Bhishi Ledger (from Matrix Sheet)
+  monthlyLedger?: MonthlyLedgerEntry[];
+
   // Portal Login Credentials & Access
   portalAccessEnabled?: boolean;
   loginId?: string; // Custom username or default client ID / email / phone

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { StatusBadge } from '../common/StatusBadge';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
@@ -6,6 +7,7 @@ import { Activity, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 
 export const RecentActivityFeed: React.FC = () => {
   const { transactions } = useData();
+  const navigate = useNavigate();
 
   // Combine latest activities
   const activities = transactions.slice(0, 6).map((txn) => {
@@ -13,6 +15,7 @@ export const RecentActivityFeed: React.FC = () => {
     return {
       id: txn.id,
       title: txn.description,
+      clientId: txn.clientId,
       client: txn.clientName,
       amount: txn.amount,
       nature: txn.nature,
@@ -59,7 +62,18 @@ export const RecentActivityFeed: React.FC = () => {
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-slate-900 truncate">{act.title}</p>
                       <p className="text-[11px] text-slate-500">
-                        {act.client} • {formatDateTime(act.date)}
+                        {act.clientId ? (
+                          <button
+                            onClick={() => navigate(`/clients/${act.clientId}`)}
+                            className="font-semibold text-slate-700 hover:text-emerald-700 hover:underline cursor-pointer"
+                            title="Click to view full client details"
+                          >
+                            {act.client}
+                          </button>
+                        ) : (
+                          <span>{act.client}</span>
+                        )}{' '}
+                        • {formatDateTime(act.date)}
                       </p>
                     </div>
                   </div>

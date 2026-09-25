@@ -7,6 +7,9 @@ import { initialUsers } from '../services/seedData';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { ImportClientsModal } from '../components/clients/ImportClientsModal';
+import { EraseImportedDataModal } from '../components/clients/EraseImportedDataModal';
+import { downloadSampleClientTemplate } from '../services/importService';
 import {
   Settings as SettingsIcon,
   Building2,
@@ -15,6 +18,10 @@ import {
   RefreshCw,
   CloudUpload,
   Users,
+  FileSpreadsheet,
+  Download,
+  Upload,
+  Trash2,
 } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
@@ -41,6 +48,8 @@ export const SettingsPage: React.FC = () => {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [eraseModalOpen, setEraseModalOpen] = useState(false);
 
   const handleSaveBusiness = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -304,6 +313,70 @@ export const SettingsPage: React.FC = () => {
             </span>
           </div>
 
+          {/* Data Import & Migration Hub */}
+          <div className="p-5 bg-gradient-to-br from-emerald-50/70 via-teal-50/40 to-slate-50 rounded-2xl border border-emerald-200/80 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white shadow-xs border border-emerald-200 flex items-center justify-center text-emerald-600 font-bold">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">
+                    Bhishi Member & Ledger Data Migration
+                  </h4>
+                  <p className="text-xs text-slate-600">
+                    Import existing Bhishi members, savings records, and active loans from Excel (.xlsx) or CSV
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 text-xs shadow-xs"
+                  leftIcon={<Download className="w-3.5 h-3.5 text-slate-500" />}
+                  onClick={() => downloadSampleClientTemplate('xlsx')}
+                >
+                  Download Template
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-rose-50 border-rose-200 text-rose-800 hover:bg-rose-100 text-xs shadow-xs"
+                  leftIcon={<Trash2 className="w-3.5 h-3.5 text-rose-600" />}
+                  onClick={() => setEraseModalOpen(true)}
+                >
+                  Erase Imported Data
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-xs shadow-fintech"
+                  leftIcon={<Upload className="w-3.5 h-3.5" />}
+                  onClick={() => setImportModalOpen(true)}
+                >
+                  Import Spreadsheet
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-[11px] text-slate-600 border-t border-emerald-100/80">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Automatic Marathi & English column detection
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Smart duplicate phone detection
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Auto-generates investment & loan portfolios
+              </div>
+            </div>
+          </div>
+
           {/* Sync & Reset Tools */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
@@ -343,6 +416,15 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ImportClientsModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+      />
+      <EraseImportedDataModal
+        isOpen={eraseModalOpen}
+        onClose={() => setEraseModalOpen(false)}
+      />
     </div>
   );
 };

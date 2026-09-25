@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { DocumentType } from '../types';
 import { formatDate } from '../utils/formatters';
@@ -20,6 +21,7 @@ import {
 
 export const DocumentsPage: React.FC = () => {
   const { documents, clients, uploadDocument, deleteDocument } = useData();
+  const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
@@ -150,11 +152,15 @@ export const DocumentsPage: React.FC = () => {
 
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs space-y-1 text-slate-600">
                   {doc.clientName && (
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-slate-400">Client:</span>
-                      <strong className="text-slate-900 truncate max-w-[150px]">
-                        {doc.clientName} ({doc.clientId})
-                      </strong>
+                      <button
+                        onClick={() => navigate(`/clients/${doc.clientId}`)}
+                        className="text-slate-900 font-bold hover:text-emerald-700 hover:underline truncate max-w-[150px] text-right cursor-pointer"
+                        title="Click to view full client details"
+                      >
+                        {doc.clientName}
+                      </button>
                     </div>
                   )}
                   <div className="flex justify-between">

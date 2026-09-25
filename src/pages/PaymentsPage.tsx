@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Payment } from '../types';
 import { StatusBadge } from '../components/common/StatusBadge';
@@ -19,10 +20,12 @@ import {
   ChevronLeft,
   ChevronRight,
   TrendingUp,
+  ExternalLink,
 } from 'lucide-react';
 
 export const PaymentsPage: React.FC = () => {
   const { payments } = useData();
+  const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
@@ -203,7 +206,14 @@ export const PaymentsPage: React.FC = () => {
                   <tr key={pmt.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{pmt.receiptNumber}</td>
                     <td className="py-3.5 px-4">
-                      <span className="font-bold text-slate-900 block">{pmt.clientName}</span>
+                      <button
+                        onClick={() => navigate(`/clients/${pmt.clientId}`)}
+                        className="font-bold text-slate-900 hover:text-emerald-700 text-left transition-colors flex items-center gap-1 group cursor-pointer"
+                        title="Click to view full client details"
+                      >
+                        <span className="group-hover:underline">{pmt.clientName}</span>
+                        <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-emerald-600" />
+                      </button>
                       <span className="text-[11px] text-slate-400">{pmt.clientId}</span>
                     </td>
                     <td className="py-3.5 px-4">

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Transaction, TransactionNature } from '../types';
 import { StatusBadge } from '../components/common/StatusBadge';
@@ -17,10 +18,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
+  ExternalLink,
 } from 'lucide-react';
 
 export const TransactionsPage: React.FC = () => {
   const { transactions } = useData();
+  const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
@@ -226,7 +229,14 @@ export const TransactionsPage: React.FC = () => {
                     <tr key={txn.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{txn.id}</td>
                       <td className="py-3.5 px-4">
-                        <span className="font-bold text-slate-900 block">{txn.clientName}</span>
+                        <button
+                          onClick={() => txn.clientId && navigate(`/clients/${txn.clientId}`)}
+                          className="font-bold text-slate-900 hover:text-emerald-700 text-left transition-colors flex items-center gap-1 group cursor-pointer"
+                          title="Click to view full client details"
+                        >
+                          <span className="group-hover:underline">{txn.clientName}</span>
+                          <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-emerald-600" />
+                        </button>
                         <span className="text-[11px] text-slate-400">{txn.clientId}</span>
                       </td>
                       <td className="py-3.5 px-4 text-slate-800 max-w-xs">{txn.description}</td>

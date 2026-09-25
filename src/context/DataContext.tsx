@@ -20,6 +20,7 @@ import { generateId } from '../utils/formatters';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import confetti from 'canvas-confetti';
+import { ParsedClientRow } from '../services/importService';
 
 interface DataContextType {
   clients: Client[];
@@ -39,6 +40,27 @@ interface DataContextType {
   addClient: (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'totalInvested' | 'activeInvestmentsCount' | 'totalLoanAmount' | 'outstandingLoanAmount' | 'activeLoansCount'>) => Promise<Client>;
   updateClient: (id: string, updates: Partial<Client>) => Promise<void>;
   deactivateClient: (id: string) => Promise<void>;
+  importClientsBulk: (
+    parsedRows: ParsedClientRow[],
+    options?: {
+      updateExisting?: boolean;
+      createInvestments?: boolean;
+      createLoans?: boolean;
+    }
+  ) => Promise<{
+    importedCount: number;
+    updatedCount: number;
+    investmentsCount: number;
+    loansCount: number;
+  }>;
+  eraseImportedClients: (options?: {
+    bishiGroupName?: string;
+    eraseAll?: boolean;
+  }) => Promise<{
+    deletedClients: number;
+    deletedPayments: number;
+    deletedTxns: number;
+  }>;
 
   // Plans
   addPlan: (plan: Omit<InvestmentPlan, 'id' | 'createdAt'>) => Promise<InvestmentPlan>;
@@ -289,6 +311,543 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const deactivateClient = async (id: string) => {
     await updateClient(id, { status: 'INACTIVE' });
     toast.warning('Client Deactivated', `Client ${id} status set to Inactive.`);
+  };
+
+  const importClientsBulk = async (
+    parsedRows: ParsedClientRow[],
+    options: {
+      updateExisting?: boolean;
+      createInvestments?: boolean;
+      createLoans?: boolean;
+    } = { updateExisting: true, createInvestments: true, createLoans: true }
+  ) => {
+    let importedCount = 0;
+    let updatedCount = 0;
+    let investmentsCount = 0;
+    let loansCount = 0;
+
+    const newClientsMap = new Map<string, Client>();
+    clients.forEach((c) => newClientsMap.set(c.id, { ...c }));
+
+    const newInvestmentsList: Investment[] = [...investments];
+    const newLoansList: Loan[] = [...loans];
+    const newPaymentsList: Payment[] = [...payments];
+    const newTransactionsList: Transaction[] = [...transactions];
+
+    const clientsToBatchSave: Client[] = [];
+    const investmentsToBatchSave: Investment[] = [];
+    const loansToBatchSave: Loan[] = [];
+
+    const nowIso = new Date().toISOString();
+    const todayStr = nowIso.split('T')[0];
+    let nextIdNumber = (Date.now() % 89000) + 10000;
+
+    for (const row of parsedRows) {
+      if (!row.isValid) continue;
+
+      const d = row.data;
+      let targetClient: Client;
+
+      // Duplicate match against map
+      const existingClient = row.isDuplicate && row.duplicateClient
+        ? Array.from(newClientsMap.values()).find((c) => c.phone === row.duplicateClient?.phone || c.id === row.duplicateClient?.id)
+        : Array.from(newClientsMap.values()).find((c) => c.phone && c.phone === d.phone);
+
+      if (existingClient) {
+        if (!options.updateExisting) {
+          continue; // Skip existing client
+        }
+        targetClient = {
+          ...existingClient,
+          name: d.name || existingClient.name,
+          email: d.email || existingClient.email,
+          gender: d.gender || existingClient.gender,
+          dateOfBirth: d.dateOfBirth || existingClient.dateOfBirth,
+          address: d.address || existingClient.address,
+          city: d.city || existingClient.city,
+          state: d.state || existingClient.state,
+          pinCode: d.pinCode || existingClient.pinCode,
+          occupation: d.occupation || existingClient.occupation,
+          companyName: d.companyName || existingClient.companyName,
+          monthlyIncome: d.monthlyIncome || existingClient.monthlyIncome,
+          bankName: d.bankName || existingClient.bankName,
+          accountHolderName: d.accountHolderName || existingClient.accountHolderName,
+          accountNumber: d.accountNumber || existingClient.accountNumber,
+          ifscCode: d.ifscCode || existingClient.ifscCode,
+          nomineeName: d.nomineeName || existingClient.nomineeName,
+          nomineeRelationship: d.nomineeRelationship || existingClient.nomineeRelationship,
+          nomineePhone: d.nomineePhone || existingClient.nomineePhone,
+          clientType: d.clientType || existingClient.clientType,
+          status: d.status || existingClient.status,
+          kycStatus: d.kycStatus || existingClient.kycStatus,
+          notes: d.notes || existingClient.notes,
+
+          // Bhishi attributes
+          srNo: d.srNo !== undefined ? d.srNo : existingClient.srNo,
+          memberNumber: d.memberNumber || existingClient.memberNumber,
+          aadhaarNumber: d.aadhaarNumber || existingClient.aadhaarNumber,
+          panNumber: d.panNumber || existingClient.panNumber,
+          bishiGroupName: d.bishiGroupName || existingClient.bishiGroupName,
+          monthlyInstallment: d.monthlyInstallment || existingClient.monthlyInstallment,
+          monthsPaid: d.monthsPaid !== undefined ? d.monthsPaid : existingClient.monthsPaid,
+          totalMonths: d.totalMonths || existingClient.totalMonths,
+          penaltyAmount: d.penaltyAmount !== undefined ? d.penaltyAmount : existingClient.penaltyAmount,
+          totalPaid: d.totalPaid || existingClient.totalPaid,
+          balanceAmount: d.balanceAmount !== undefined ? d.balanceAmount : existingClient.balanceAmount,
+
+          // Dynamic unmapped custom fields
+          customFields: {
+            ...(existingClient.customFields || {}),
+            ...(d.customFields || {}),
+          },
+
+          updatedAt: nowIso,
+        };
+        updatedCount++;
+      } else {
+        nextIdNumber++;
+        const newClientId = `MB-${nextIdNumber}`;
+        targetClient = {
+          id: newClientId,
+          name: d.name,
+          phone: d.phone,
+          email: d.email || `${d.phone}@mybishi.in`,
+          gender: d.gender || 'MALE',
+          dateOfBirth: d.dateOfBirth || '1990-01-01',
+          address: d.address || '',
+          city: d.city || 'Miraj',
+          state: d.state || 'Maharashtra',
+          pinCode: d.pinCode || '416410',
+          occupation: d.occupation || 'Self-Employed',
+          companyName: d.companyName || '',
+          monthlyIncome: d.monthlyIncome || 35000,
+          bankName: d.bankName || '',
+          accountHolderName: d.accountHolderName || d.name,
+          accountNumber: d.accountNumber || '',
+          ifscCode: d.ifscCode || '',
+          nomineeName: d.nomineeName || '',
+          nomineeRelationship: d.nomineeRelationship || 'Spouse',
+          nomineePhone: d.nomineePhone || '',
+          clientType: d.clientType || 'INVESTOR',
+          status: d.status || 'ACTIVE',
+          kycStatus: d.kycStatus || 'VERIFIED',
+          notes: d.notes || 'Imported via Excel',
+
+          // Bhishi attributes
+          srNo: d.srNo,
+          memberNumber: d.memberNumber || `SB-${nextIdNumber}`,
+          aadhaarNumber: d.aadhaarNumber || '',
+          panNumber: d.panNumber || '',
+          bishiGroupName: d.bishiGroupName || 'साई बीशी मंडळ',
+          monthlyInstallment: d.monthlyInstallment || 0,
+          monthsPaid: d.monthsPaid || 0,
+          totalMonths: d.totalMonths || 12,
+          penaltyAmount: d.penaltyAmount || 0,
+          totalPaid: d.totalPaid || 0,
+          balanceAmount: d.balanceAmount || 0,
+          monthlyLedger: d.monthlyLedger,
+
+          // Dynamic unmapped custom fields
+          customFields: d.customFields || {},
+
+          totalInvested: 0,
+          activeInvestmentsCount: 0,
+          totalLoanAmount: 0,
+          outstandingLoanAmount: 0,
+          activeLoansCount: 0,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+          createdBy: user?.name || 'Excel Import',
+        };
+        importedCount++;
+      }
+
+      // If monthly ledger entries exist from matrix, record individual monthly payments
+      if (d.monthlyLedger && d.monthlyLedger.length > 0) {
+        d.monthlyLedger.forEach((entry, mIdx) => {
+          if (entry.amountPaid > 0) {
+            const payDate = entry.paymentDate || todayStr;
+            const payId = `PAY-${Date.now().toString().slice(-5)}M${mIdx + 1}${targetClient.id.slice(-4)}`;
+            const newPayment: Payment = {
+              id: payId,
+              clientId: targetClient.id,
+              clientName: targetClient.name,
+              paymentType: 'INVESTMENT_PAYMENT',
+              amount: entry.amountPaid,
+              paymentMethod: 'CASH',
+              transactionReference: `HFTA-${entry.monthName}-${targetClient.id}`,
+              paymentDate: payDate,
+              status: 'COMPLETED',
+              recordedBy: user?.name || 'Excel Import',
+              notes: `${targetClient.bishiGroupName || 'Bishi'} - Month ${entry.monthIndex} (${entry.monthName}) Hfta`,
+              receiptNumber: `RCPT-${Date.now().toString().slice(-4)}M${mIdx + 1}`,
+              createdAt: payDate,
+            };
+            newPaymentsList.unshift(newPayment);
+
+            const newTxn: Transaction = {
+              id: `TXN-${Date.now().toString().slice(-5)}M${mIdx + 1}${targetClient.id.slice(-4)}`,
+              clientId: targetClient.id,
+              clientName: targetClient.name,
+              type: 'INVESTMENT',
+              nature: 'CREDIT',
+              amount: entry.amountPaid,
+              paymentMethod: 'CASH',
+              referenceNumber: `HFTA-${entry.monthName}-${targetClient.id}`,
+              date: payDate,
+              status: 'SUCCESS',
+              description: `Hfta Collection - ${entry.monthName} (Month ${entry.monthIndex})`,
+              createdBy: user?.name || 'Excel Import',
+              createdAt: payDate,
+            };
+            newTransactionsList.unshift(newTxn);
+          }
+        });
+      }
+
+      // Handle Initial Investment Creation if requested & amount > 0
+      if (options.createInvestments && d.initialInvestmentAmount && d.initialInvestmentAmount > 0) {
+        const invAmount = d.initialInvestmentAmount;
+        const durationMonths = d.investmentPlanDurationMonths || 12;
+        const returnRate = d.investmentReturnRate || 12;
+        const expectedReturn = Math.round((invAmount * returnRate * durationMonths) / 1200);
+        const totalPayout = invAmount + expectedReturn;
+
+        const maturityDateObj = new Date();
+        maturityDateObj.setMonth(maturityDateObj.getMonth() + durationMonths);
+        const maturityDate = maturityDateObj.toISOString().split('T')[0];
+
+        const invId = `INV-${Date.now().toString().slice(-5)}${investmentsCount + 1}`;
+        const matchingPlan = plans.find((p) => p.durationMonths === durationMonths) || plans[0];
+
+        const newInvestment: Investment = {
+          id: invId,
+          clientId: targetClient.id,
+          clientName: targetClient.name,
+          clientPhone: targetClient.phone,
+          planId: matchingPlan?.id || 'PLAN-GOLD-12M',
+          planName: matchingPlan?.name || `Bishi Growth (${durationMonths}M)`,
+          amount: invAmount,
+          returnRate,
+          durationMonths,
+          startDate: todayStr,
+          maturityDate,
+          expectedReturn,
+          totalPayout,
+          returnsPaid: 0,
+          status: 'ACTIVE',
+          paymentMethod: 'UPI',
+          transactionReference: `IMPORT-INV-${targetClient.id}`,
+          notes: 'Auto-created during Excel import',
+          createdAt: todayStr,
+          createdBy: user?.name || 'Excel Import',
+        };
+
+        targetClient.totalInvested = (targetClient.totalInvested || 0) + invAmount;
+        targetClient.activeInvestmentsCount = (targetClient.activeInvestmentsCount || 0) + 1;
+        if (targetClient.clientType === 'BORROWER') targetClient.clientType = 'INVESTOR_BORROWER';
+
+        newInvestmentsList.unshift(newInvestment);
+        investmentsToBatchSave.push(newInvestment);
+        investmentsCount++;
+
+        const payId = `PAY-${Date.now().toString().slice(-5)}${investmentsCount}`;
+        const newPayment: Payment = {
+          id: payId,
+          clientId: targetClient.id,
+          clientName: targetClient.name,
+          investmentId: newInvestment.id,
+          paymentType: 'INVESTMENT_PAYMENT',
+          amount: invAmount,
+          paymentMethod: 'UPI',
+          transactionReference: `IMP-TXN-${invId}`,
+          paymentDate: todayStr,
+          status: 'COMPLETED',
+          recordedBy: user?.name || 'Excel Import',
+          notes: `Initial investment deposit for ${newInvestment.planName}`,
+          receiptNumber: `RCPT-${Date.now().toString().slice(-5)}${investmentsCount}`,
+          createdAt: nowIso,
+        };
+        newPaymentsList.unshift(newPayment);
+
+        const newTxn: Transaction = {
+          id: `TXN-${Date.now().toString().slice(-5)}${investmentsCount}`,
+          clientId: targetClient.id,
+          clientName: targetClient.name,
+          investmentId: newInvestment.id,
+          type: 'INVESTMENT',
+          nature: 'CREDIT',
+          amount: invAmount,
+          paymentMethod: 'UPI',
+          referenceNumber: `IMP-TXN-${invId}`,
+          date: todayStr,
+          status: 'SUCCESS',
+          description: `Initial investment contribution - ${newInvestment.planName}`,
+          createdBy: user?.name || 'Excel Import',
+          createdAt: nowIso,
+        };
+        newTransactionsList.unshift(newTxn);
+      }
+
+      // Handle Initial Loan Creation if requested & amount > 0
+      if (options.createLoans && d.initialLoanAmount && d.initialLoanAmount > 0) {
+        const loanAmount = d.initialLoanAmount;
+        const tenureMonths = d.loanTenureMonths || 12;
+        const interestRate = d.loanInterestRate || 14;
+
+        const { schedule, emiAmount, totalInterest, totalPayable } = generateEmiSchedule(
+          loanAmount,
+          interestRate,
+          tenureMonths,
+          todayStr
+        );
+
+        const loanId = `LN-${Date.now().toString().slice(-5)}${loansCount + 1}`;
+
+        const newLoan: Loan = {
+          id: loanId,
+          clientId: targetClient.id,
+          clientName: targetClient.name,
+          clientPhone: targetClient.phone,
+          requestedAmount: loanAmount,
+          approvedAmount: loanAmount,
+          loanPurpose: 'Active Bhishi Member Loan (Imported)',
+          interestRate,
+          tenureMonths,
+          monthlyIncome: targetClient.monthlyIncome || 35000,
+          existingLiabilities: 0,
+          bankName: targetClient.bankName || 'Direct Cash / Bank',
+          accountNumber: targetClient.accountNumber || '',
+          ifscCode: targetClient.ifscCode || '',
+          guarantor: {
+            name: targetClient.nomineeName || 'Bhishi Committee',
+            phone: targetClient.nomineePhone || targetClient.phone,
+            relationship: targetClient.nomineeRelationship || 'Guarantor',
+            address: targetClient.address || targetClient.city,
+            occupation: 'Member',
+          },
+          emiAmount,
+          totalInterest,
+          totalPayable,
+          amountPaid: 0,
+          principalPaid: 0,
+          interestPaid: 0,
+          outstandingAmount: totalPayable,
+          status: 'DISBURSED',
+          applicationDate: todayStr,
+          approvalDate: todayStr,
+          disbursementDate: todayStr,
+          disbursementMethod: 'BANK_TRANSFER',
+          disbursementRef: `IMP-LN-${loanId}`,
+          emiSchedule: schedule,
+          nextEmiDate: schedule[0]?.dueDate,
+          nextEmiAmount: schedule[0]?.emiAmount,
+          overdueAmount: 0,
+          createdAt: nowIso,
+          createdBy: user?.name || 'Excel Import',
+        };
+
+        targetClient.totalLoanAmount = (targetClient.totalLoanAmount || 0) + loanAmount;
+        targetClient.outstandingLoanAmount = (targetClient.outstandingLoanAmount || 0) + totalPayable;
+        targetClient.activeLoansCount = (targetClient.activeLoansCount || 0) + 1;
+        if (targetClient.clientType === 'INVESTOR') targetClient.clientType = 'INVESTOR_BORROWER';
+
+        newLoansList.unshift(newLoan);
+        loansToBatchSave.push(newLoan);
+        loansCount++;
+
+        const newPayment: Payment = {
+          id: `PAY-${Date.now().toString().slice(-5)}L${loansCount}`,
+          clientId: targetClient.id,
+          clientName: targetClient.name,
+          loanId: newLoan.id,
+          paymentType: 'LOAN_DISBURSEMENT',
+          amount: loanAmount,
+          paymentMethod: 'BANK_TRANSFER',
+          transactionReference: `IMP-LN-${loanId}`,
+          paymentDate: todayStr,
+          status: 'COMPLETED',
+          recordedBy: user?.name || 'Excel Import',
+          notes: `Loan disbursement for ${loanId}`,
+          receiptNumber: `RCPT-${Date.now().toString().slice(-5)}L${loansCount}`,
+          createdAt: nowIso,
+        };
+        newPaymentsList.unshift(newPayment);
+
+        const newTxn: Transaction = {
+          id: `TXN-${Date.now().toString().slice(-5)}L${loansCount}`,
+          clientId: targetClient.id,
+          clientName: targetClient.name,
+          loanId: newLoan.id,
+          type: 'LOAN_DISBURSEMENT',
+          nature: 'DEBIT',
+          amount: loanAmount,
+          paymentMethod: 'BANK_TRANSFER',
+          referenceNumber: `IMP-LN-${loanId}`,
+          date: todayStr,
+          status: 'SUCCESS',
+          description: `Loan disbursement for ${targetClient.name} (${loanId})`,
+          createdBy: user?.name || 'Excel Import',
+          createdAt: nowIso,
+        };
+        newTransactionsList.unshift(newTxn);
+      }
+
+      newClientsMap.set(targetClient.id, targetClient);
+      clientsToBatchSave.push(targetClient);
+    }
+
+    const updatedClientsList = Array.from(newClientsMap.values());
+
+    setClients(updatedClientsList);
+    setInvestments(newInvestmentsList);
+    setLoans(newLoansList);
+    setPayments(newPaymentsList);
+    setTransactions(newTransactionsList);
+
+    dataService.saveClientsLocally(updatedClientsList);
+    dataService.saveInvestmentsLocally(newInvestmentsList);
+    dataService.saveLoansLocally(newLoansList);
+    dataService.savePaymentsLocally(newPaymentsList);
+    dataService.saveTransactionsLocally(newTransactionsList);
+
+    // Save batch to Firestore asynchronously
+    await Promise.all([
+      dataService.saveClientsBatch(clientsToBatchSave),
+      dataService.saveInvestmentsBatch(investmentsToBatchSave),
+      dataService.saveLoansBatch(loansToBatchSave),
+    ]);
+
+    // Audit log & notification
+    logAudit(
+      'BULK_IMPORT_CLIENTS',
+      'CLIENTS',
+      `BATCH-${Date.now()}`,
+      `Imported ${importedCount} new members, updated ${updatedCount} existing, added ${investmentsCount} investments and ${loansCount} loans from spreadsheet.`
+    );
+
+    notify(
+      'Spreadsheet Import Completed',
+      `Successfully imported ${importedCount} new members and updated ${updatedCount} existing members.`,
+      'SYSTEM'
+    );
+
+    try {
+      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+    } catch {
+      // ignore
+    }
+
+    toast.success(
+      'Data Import Successful!',
+      `Imported ${importedCount} new members, updated ${updatedCount} existing records.`
+    );
+
+    return { importedCount, updatedCount, investmentsCount, loansCount };
+  };
+
+  const eraseImportedClients = async (options?: {
+    bishiGroupName?: string;
+    eraseAll?: boolean;
+  }): Promise<{
+    deletedClients: number;
+    deletedPayments: number;
+    deletedTxns: number;
+  }> => {
+    // Determine which clients match imported criteria
+    const clientsToDelete = clients.filter((c) => {
+      if (options?.bishiGroupName && options.bishiGroupName.trim() !== '') {
+        return (
+          c.bishiGroupName?.toLowerCase().trim() ===
+          options.bishiGroupName.toLowerCase().trim()
+        );
+      }
+      if (options?.eraseAll) {
+        return true;
+      }
+      // Default: any client with monthlyLedger or customFields or bishiGroupName or notes matching import
+      return (
+        Boolean(c.monthlyLedger && c.monthlyLedger.length > 0) ||
+        Boolean(c.customFields && Object.keys(c.customFields).length > 0) ||
+        Boolean(c.bishiGroupName) ||
+        Boolean(c.notes && c.notes.includes('Excel')) ||
+        Boolean(c.srNo !== undefined)
+      );
+    });
+
+    const clientIdsToDelete = new Set(clientsToDelete.map((c) => c.id));
+    const deletedClientsCount = clientsToDelete.length;
+
+    // Filter remaining clients
+    const remainingClients = clients.filter((c) => !clientIdsToDelete.has(c.id));
+
+    // Filter payments linked to these clients
+    const paymentsToDelete = payments.filter(
+      (p) =>
+        clientIdsToDelete.has(p.clientId) ||
+        (p.notes && p.notes.includes('Excel Sheet Monthly Matrix Import'))
+    );
+    const paymentIdsToDelete = paymentsToDelete.map((p) => p.id);
+    const remainingPayments = payments.filter((p) => !paymentIdsToDelete.includes(p.id));
+
+    // Filter transactions linked to these clients
+    const txnsToDelete = transactions.filter(
+      (t) =>
+        clientIdsToDelete.has(t.clientId) ||
+        (t.createdBy && t.createdBy.includes('Excel Import'))
+    );
+    const txnIdsToDelete = txnsToDelete.map((t) => t.id);
+    const remainingTransactions = transactions.filter((t) => !txnIdsToDelete.includes(t.id));
+
+    // Filter investments & loans linked to these clients
+    const investmentsToDelete = investments.filter((i) => clientIdsToDelete.has(i.clientId));
+    const invIdsToDelete = investmentsToDelete.map((i) => i.id);
+    const remainingInvestments = investments.filter((i) => !invIdsToDelete.includes(i.id));
+
+    const loansToDelete = loans.filter((l) => clientIdsToDelete.has(l.clientId));
+    const loanIdsToDelete = loansToDelete.map((l) => l.id);
+    const remainingLoans = loans.filter((l) => !loanIdsToDelete.includes(l.id));
+
+    // Update state immediately
+    setClients(remainingClients);
+    setPayments(remainingPayments);
+    setTransactions(remainingTransactions);
+    setInvestments(remainingInvestments);
+    setLoans(remainingLoans);
+
+    // Save locally
+    dataService.saveClientsLocally(remainingClients);
+    dataService.savePaymentsLocally(remainingPayments);
+    dataService.saveTransactionsLocally(remainingTransactions);
+    dataService.saveInvestmentsLocally(remainingInvestments);
+    dataService.saveLoansLocally(remainingLoans);
+
+    // Delete from Firestore in batches asynchronously
+    await Promise.all([
+      dataService.deleteClientsBatch(Array.from(clientIdsToDelete)),
+      dataService.deletePaymentsBatch(paymentIdsToDelete),
+      dataService.deleteTransactionsBatch(txnIdsToDelete),
+      dataService.deleteInvestmentsBatch(invIdsToDelete),
+      dataService.deleteLoansBatch(loanIdsToDelete),
+    ]);
+
+    logAudit(
+      'ERASE_IMPORTED_CLIENTS',
+      'CLIENTS',
+      `PURGE-${Date.now()}`,
+      `Erased ${deletedClientsCount} imported members, ${paymentsToDelete.length} payment receipts, and ${txnsToDelete.length} transactions.`
+    );
+
+    toast.success(
+      'Imported Data Erased',
+      `Permanently removed ${deletedClientsCount} member records and associated ledger entries.`
+    );
+
+    return {
+      deletedClients: deletedClientsCount,
+      deletedPayments: paymentsToDelete.length,
+      deletedTxns: txnsToDelete.length,
+    };
   };
 
   // --- INVESTMENT PLAN ACTIONS ---
@@ -1078,6 +1637,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         addClient,
         updateClient,
         deactivateClient,
+        importClientsBulk,
+        eraseImportedClients,
         addPlan,
         updatePlan,
         createInvestment,

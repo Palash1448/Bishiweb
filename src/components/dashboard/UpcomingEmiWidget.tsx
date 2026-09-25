@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { StatusBadge } from '../common/StatusBadge';
 import { formatCurrency, formatDate } from '../../utils/formatters';
@@ -9,6 +9,7 @@ import { Button } from '../ui/Button';
 
 export const UpcomingEmiWidget: React.FC = () => {
   const { loans } = useData();
+  const navigate = useNavigate();
   const [selectedPayment, setSelectedPayment] = useState<{ loanId: string; emiNumber: number } | null>(null);
 
   // Collect upcoming & due EMIs from active loans
@@ -79,7 +80,13 @@ export const UpcomingEmiWidget: React.FC = () => {
                     #{item.emiNumber}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-900 truncate">{item.clientName}</p>
+                    <button
+                      onClick={() => navigate(`/clients/${item.clientId}`)}
+                      className="text-xs font-bold text-slate-900 hover:text-emerald-700 hover:underline text-left truncate block transition-colors cursor-pointer"
+                      title="Click to view full client details"
+                    >
+                      {item.clientName}
+                    </button>
                     <p className="text-[11px] text-slate-500">
                       {item.loanId} • Due: {formatDate(item.dueDate)}
                     </p>

@@ -478,12 +478,140 @@ export const dataService = {
     }
   },
 
+  async saveClientsBatch(clientsToSave: Client[]) {
+    if (isFirebaseConfigured && db && clientsToSave.length > 0) {
+      try {
+        const chunkSize = 400;
+        for (let i = 0; i < clientsToSave.length; i += chunkSize) {
+          const batch = writeBatch(db);
+          const chunk = clientsToSave.slice(i, i + chunkSize);
+          chunk.forEach((c) => batch.set(doc(db!, 'clients', c.id), c));
+          await batch.commit();
+        }
+      } catch (err) {
+        console.error('Firestore saveClientsBatch error:', err);
+      }
+    }
+  },
+
+  async saveInvestmentsBatch(investmentsToSave: Investment[]) {
+    if (isFirebaseConfigured && db && investmentsToSave.length > 0) {
+      try {
+        const chunkSize = 400;
+        for (let i = 0; i < investmentsToSave.length; i += chunkSize) {
+          const batch = writeBatch(db);
+          const chunk = investmentsToSave.slice(i, i + chunkSize);
+          chunk.forEach((inv) => batch.set(doc(db!, 'investments', inv.id), inv));
+          await batch.commit();
+        }
+      } catch (err) {
+        console.error('Firestore saveInvestmentsBatch error:', err);
+      }
+    }
+  },
+
+  async saveLoansBatch(loansToSave: Loan[]) {
+    if (isFirebaseConfigured && db && loansToSave.length > 0) {
+      try {
+        const chunkSize = 400;
+        for (let i = 0; i < loansToSave.length; i += chunkSize) {
+          const batch = writeBatch(db);
+          const chunk = loansToSave.slice(i, i + chunkSize);
+          chunk.forEach((l) => batch.set(doc(db!, 'loans', l.id), l));
+          await batch.commit();
+        }
+      } catch (err) {
+        console.error('Firestore saveLoansBatch error:', err);
+      }
+    }
+  },
+
   async deleteClient(clientId: string) {
     if (isFirebaseConfigured && db) {
       try {
         await deleteDoc(doc(db, 'clients', clientId));
       } catch (err) {
         console.error('Firestore deleteClient error:', err);
+      }
+    }
+  },
+
+  async deleteClientsBatch(clientIds: string[]) {
+    if (isFirebaseConfigured && db && clientIds.length > 0) {
+      try {
+        const chunkSize = 400;
+        for (let i = 0; i < clientIds.length; i += chunkSize) {
+          const batch = writeBatch(db);
+          const chunk = clientIds.slice(i, i + chunkSize);
+          chunk.forEach((id) => batch.delete(doc(db!, 'clients', id)));
+          await batch.commit();
+        }
+      } catch (err) {
+        console.error('Firestore deleteClientsBatch error:', err);
+      }
+    }
+  },
+
+  async deletePaymentsBatch(paymentIds: string[]) {
+    if (isFirebaseConfigured && db && paymentIds.length > 0) {
+      try {
+        const chunkSize = 400;
+        for (let i = 0; i < paymentIds.length; i += chunkSize) {
+          const batch = writeBatch(db);
+          const chunk = paymentIds.slice(i, i + chunkSize);
+          chunk.forEach((id) => batch.delete(doc(db!, 'payments', id)));
+          await batch.commit();
+        }
+      } catch (err) {
+        console.error('Firestore deletePaymentsBatch error:', err);
+      }
+    }
+  },
+
+  async deleteTransactionsBatch(txnIds: string[]) {
+    if (isFirebaseConfigured && db && txnIds.length > 0) {
+      try {
+        const chunkSize = 400;
+        for (let i = 0; i < txnIds.length; i += chunkSize) {
+          const batch = writeBatch(db);
+          const chunk = txnIds.slice(i, i + chunkSize);
+          chunk.forEach((id) => batch.delete(doc(db!, 'transactions', id)));
+          await batch.commit();
+        }
+      } catch (err) {
+        console.error('Firestore deleteTransactionsBatch error:', err);
+      }
+    }
+  },
+
+  async deleteInvestmentsBatch(investmentIds: string[]) {
+    if (isFirebaseConfigured && db && investmentIds.length > 0) {
+      try {
+        const chunkSize = 400;
+        for (let i = 0; i < investmentIds.length; i += chunkSize) {
+          const batch = writeBatch(db);
+          const chunk = investmentIds.slice(i, i + chunkSize);
+          chunk.forEach((id) => batch.delete(doc(db!, 'investments', id)));
+          await batch.commit();
+        }
+      } catch (err) {
+        console.error('Firestore deleteInvestmentsBatch error:', err);
+      }
+    }
+  },
+
+  async deleteLoansBatch(loanIds: string[]) {
+    if (isFirebaseConfigured && db && loanIds.length > 0) {
+      try {
+        const chunkSize = 400;
+        for (let i = 0; i < loanIds.length; i += chunkSize) {
+          const batch = writeBatch(db);
+          const chunk = loanIds.slice(i, i + chunkSize);
+          chunk.forEach((id) => batch.delete(doc(db!, 'loans', id)));
+          await batch.commit();
+        }
+      } catch (err) {
+        console.error('Firestore deleteLoansBatch error:', err);
       }
     }
   },

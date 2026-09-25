@@ -6,10 +6,13 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { exportToCsv } from '../services/exportService';
 import { AddClientModal } from '../components/clients/AddClientModal';
+import { ClientQuickViewModal } from '../components/clients/ClientQuickViewModal';
+import { EraseImportedDataModal } from '../components/clients/EraseImportedDataModal';
 import { CreateInvestmentModal } from '../components/investments/CreateInvestmentModal';
 import { LoanApplicationModal } from '../components/loans/LoanApplicationModal';
 import { RecordPaymentModal } from '../components/payments/RecordPaymentModal';
 import { ManageClientCredentialsModal } from '../components/clients/ManageClientCredentialsModal';
+import { ImportClientsModal } from '../components/clients/ImportClientsModal';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
@@ -19,6 +22,8 @@ import {
   Search,
   Plus,
   Download,
+  FileSpreadsheet,
+  Trash2,
   Eye,
   TrendingUp,
   Landmark,
@@ -43,6 +48,9 @@ export const ClientsPage: React.FC = () => {
 
   // Modals
   const [addClientOpen, setAddClientOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [eraseModalOpen, setEraseModalOpen] = useState(false);
+  const [selectedClientForQuickView, setSelectedClientForQuickView] = useState<Client | null>(null);
   const [selectedClientForInvestment, setSelectedClientForInvestment] = useState<string | null>(null);
   const [selectedClientForLoan, setSelectedClientForLoan] = useState<string | null>(null);
   const [selectedClientForPayment, setSelectedClientForPayment] = useState<string | null>(null);
@@ -59,6 +67,10 @@ export const ClientsPage: React.FC = () => {
           c.phone.includes(query) ||
           c.email.toLowerCase().includes(query) ||
           c.id.toLowerCase().includes(query) ||
+          (c.memberNumber && c.memberNumber.toLowerCase().includes(query)) ||
+          (c.aadhaarNumber && c.aadhaarNumber.includes(query)) ||
+          (c.panNumber && c.panNumber.toLowerCase().includes(query)) ||
+          (c.bishiGroupName && c.bishiGroupName.toLowerCase().includes(query)) ||
           c.city.toLowerCase().includes(query);
 
         const matchesType = typeFilter === 'ALL' || c.clientType === typeFilter;
@@ -106,7 +118,25 @@ export const ClientsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-emerald-50/50 border-emerald-200 text-emerald-800 hover:bg-emerald-100/70 shadow-xs"
+            leftIcon={<FileSpreadsheet className="w-4 h-4 text-emerald-600" />}
+            onClick={() => setImportModalOpen(true)}
+          >
+            Import Excel / CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-rose-50/50 border-rose-200 text-rose-800 hover:bg-rose-100/80 hover:border-rose-300 shadow-xs"
+            leftIcon={<Trash2 className="w-4 h-4 text-rose-600" />}
+            onClick={() => setEraseModalOpen(true)}
+          >
+            Erase Imported Data
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -118,7 +148,7 @@ export const ClientsPage: React.FC = () => {
           <Button
             variant="primary"
             size="sm"
-            className="bg-emerald-600 hover:bg-emerald-700"
+            className="bg-emerald-600 hover:bg-emerald-700 shadow-fintech"
             leftIcon={<Plus className="w-4 h-4" />}
             onClick={() => setAddClientOpen(true)}
           >
@@ -218,10 +248,24 @@ export const ClientsPage: React.FC = () => {
                           {client.name.slice(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <span className="font-bold text-slate-900 text-sm block group-hover:text-emerald-700 transition-colors">
-                            {client.name}
-                          </span>
-                          <span className="text-[11px] text-slate-500 font-mono">{client.id}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 text-sm block group-hover:text-emerald-700 transition-colors">
+                              {client.name}
+                            </span>
+                            {client.memberNumber && (
+                              <span className="text-[10px] font-mono font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                {client.memberNumber}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-mono">
+                            <span>{client.id}</span>
+                            {client.bishiGroupName && (
+                              <span className="text-slate-400 font-sans truncate max-w-[120px]">
+                                • {client.bishiGroupName}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -288,9 +332,9 @@ export const ClientsPage: React.FC = () => {
                     <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
                         <button
-                          onClick={() => navigate(`/clients/${client.id}`)}
+                          onClick={() => setSelectedClientForQuickView(client)}
                           className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
-                          title="View 360 Dossier"
+                          title="Quick View Dossier"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
@@ -367,6 +411,10 @@ export const ClientsPage: React.FC = () => {
         isOpen={addClientOpen}
         onClose={() => setAddClientOpen(false)}
       />
+      <ImportClientsModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+      />
       {selectedClientForCredentials && (
         <ManageClientCredentialsModal
           isOpen={Boolean(selectedClientForCredentials)}
@@ -395,6 +443,16 @@ export const ClientsPage: React.FC = () => {
           preSelectedClientId={selectedClientForPayment}
         />
       )}
+      <ClientQuickViewModal
+        isOpen={Boolean(selectedClientForQuickView)}
+        onClose={() => setSelectedClientForQuickView(null)}
+        client={selectedClientForQuickView}
+        onRecordPayment={(clientId) => setSelectedClientForPayment(clientId)}
+      />
+      <EraseImportedDataModal
+        isOpen={eraseModalOpen}
+        onClose={() => setEraseModalOpen(false)}
+      />
     </div>
   );
 };
